@@ -15,7 +15,13 @@ from google.oauth2 import id_token
 load_dotenv(override=True)
 
 app = Flask(__name__)
+
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["PERMANENT_SESSION_LIFETIME"] = 60 * 60 * 8
+app.config["SESSION_COOKIE_SECURE"] = os.getenv("COOKIE_SECURE") == "1"
+
 
 if not app.config["SECRET_KEY"]:
     raise RuntimeError(
@@ -61,6 +67,32 @@ def execute_db(query, args=()):
     db = get_db()
     db.execute(query, args)
     db.commit()
+
+
+@app.before_request
+def csrf_protect():
+    if request.method != "POST":
+        return
+
+    if request.endpoint == "login_data":
+        return
+
+    token = session.get("csrf_token")
+    sent_token = (
+        request.form.get("csrf_token")
+        or request.headers.get("X-CSRFToken")
+    )
+
+    if not token or not sent_token or not secrets.compare_digest(token, sent_token):
+        abort(403)
+
+
+@app.context_processor
+def inject_csrf_token():
+    if "csrf_token" not in session:
+        session["csrf_token"] = secrets.token_hex(32)
+
+    return {"csrf_token": session["csrf_token"]}
 
 
 def verify_google_token(token):

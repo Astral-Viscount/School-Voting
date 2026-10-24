@@ -195,5 +195,57 @@ def admin_required(view):
     return wrapped
 
 
+# ---------------------------------------------------------------------------
+# Routes
+# ---------------------------------------------------------------------------
+
+@app.route("/")
+def home():
+    return render_template("index.html", user=session.get("user_name"))
+
+
+@app.route("/login")
+def login_page():
+    return render_template("login.html", client_id=GOOGLE_CLIENT_ID)
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("home"))
+
+
+@app.route("/dashboard")
+@login_required
+def dashboard():
+    """Role router: send each user to the dashboard that applies to them."""
+    if get_current_user()["is_admin"]:
+        return redirect(url_for("admin_dashboard"))
+
+    return redirect(url_for("voter_dashboard"))
+
+
+@app.route("/voter")
+@login_required
+def voter_dashboard():
+    return render_template("voter_dashboard.html", user=get_current_user())
+
+
+@app.route("/admin")
+@admin_required
+def admin_dashboard():
+    return render_template("admin_dashboard.html", user=get_current_user())
+
+
+@app.errorhandler(403)
+def forbidden(error):
+    return render_template("403.html"), 403
+
+
+@app.errorhandler(404)
+def not_found(error):
+    return render_template("404.html"), 404
+
+
 if __name__ == "__main__":
     app.run(debug=True)

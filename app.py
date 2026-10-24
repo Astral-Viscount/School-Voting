@@ -155,5 +155,45 @@ def login_data():
     return jsonify({"success": True})
 
 
+def get_current_user():
+    if "user_id" not in session:
+        return None
+
+    if not hasattr(g, "current_user"):
+        g.current_user = query_db(
+            "SELECT * FROM Users WHERE id=?",
+            (session["user_id"],), one=True
+        )
+
+    return g.current_user
+
+
+def login_required(view):
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if "user_id" not in session:
+            return redirect(url_for("login_page"))
+
+        if get_current_user() is None:
+            session.clear()
+            return redirect(url_for("login_page"))
+
+        return view(*args, **kwargs)
+
+    return wrapped
+
+
+def admin_required(view):
+    @wraps(view)
+    @login_required
+    def wrapped(*args, **kwargs):
+        if not get_current_user()["is_admin"]:
+            abort(403)
+
+        return view(*args, **kwargs)
+
+    return wrapped
+
+
 if __name__ == "__main__":
     app.run(debug=True)

@@ -1,5 +1,3 @@
-""
-
 import os
 import secrets
 import sqlite3
@@ -67,6 +65,32 @@ def execute_db(query, args=()):
     db = get_db()
     db.execute(query, args)
     db.commit()
+
+def verify_google_token(token):
+    id_info = id_token.verify_oauth2_token(
+        token,
+        google_requests.Request(),
+        GOOGLE_CLIENT_ID,
+        clock_skew_in_seconds=10,
+    )
+
+    if not id_info.get("email_verified"):
+        return None
+
+    email = id_info["email"].lower()
+
+    is_school_account = any(email.endswith(domain) for domain in SCHOOL_DOMAINS)
+    is_allowlisted_admin = email in ADMIN_EMAILS
+
+    if not (is_school_account or is_allowlisted_admin):
+        return None
+
+    return {
+        "google_id": id_info["sub"],
+        "email": email,
+        "name": id_info.get("name", email.split("@")[0]),
+        "should_be_admin": is_allowlisted_admin,
+    }
 
 if __name__ == "__main__":
     app.run(debug=True)

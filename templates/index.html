@@ -1,0 +1,29 @@
+{% extends "layout.html" %}
+
+{% block title %}
+School Voting
+{% endblock %}
+
+{% block content %}
+<div class="main-card">
+    <p class="tagline">School Election Voting System</p>
+
+    {% if user %}
+        <div class="status">
+            <h3>Logged in</h3>
+            <p>{{ user }}</p>
+            <a href="{{ url_for('dashboard') }}" class="btn glacier">Dashboard</a>
+            <a href="{{ url_for('logout') }}" class="btn outline">Log out</a>
+        </div>
+
+    {% else %}
+        <div class="status">
+            <h3>Student access</h3>
+            <p>Sign in using your school Google account</p>
+            <a href="{{ url_for('login_page') }}" class="btn glacier">Login with Google</a>
+        </div>
+
+    {% endif %}
+    
+</div>
+{% endblock %}

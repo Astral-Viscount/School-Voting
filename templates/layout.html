@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" href="data:,">
+    <title>{% block title %}
+        School Voting
+        {% endblock %}
+    </title>
+</head>
+
+<body>
+    <header class="site-header">
+        <a href="{{ url_for('home') }}" class="brand">
+            <span class="brand-name">School Voting</span>
+            <span class="brand-sub">Student Prefect Election</span>
+        </a>
+
+        {% if session.get('user_id') %}
+        <button class="nav-toggle" id="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">&#9776;</button>
+
+        <nav class="site-nav" id="site-nav">
+            <a href="{{ url_for('dashboard') }}">Dashboard</a>
+
+            <div class="nav-account">
+                <span class="nav-user">{{ session.get('user_name') }}</span>
+                <a href="{{ url_for('logout') }}" class="btn danger">Log out</a>
+            </div>
+        </nav>
+
+        {% endif %}
+    </header>
+
+    <main class="site-main">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+
+            {% if messages %}
+            <div class="flash-stack">
+                {% for category, message in messages %}
+                <div class="flash flash-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="site-footer">
+        <p>&copy; 2026 School Voting &middot; Built by Mahi Mahatab</p>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/layout.js') }}"></script>
+    {% block scripts %}{% endblock %}
+    
+</body>
+</html>

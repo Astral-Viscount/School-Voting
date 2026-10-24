@@ -19,17 +19,13 @@ app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
 
 if not app.config["SECRET_KEY"]:
     raise RuntimeError(
-        "SECRET_KEY is missing. Run `python utils/secret_token.py` "
-        "and add the output to your .env file."
+        "SECRET_KEY is missing."
     )
 
 
 def env_set(name):
-    return {
-        item.strip().lower()
-        for item in os.getenv(name, "").split(",")
-        if item.strip()
-    }
+    values = os.getenv(name, "").split(",")
+    return {value.strip().lower() for value in values if value.strip()}
 
 
 ADMIN_EMAILS = env_set("ADMIN_EMAILS")
@@ -66,6 +62,7 @@ def execute_db(query, args=()):
     db.execute(query, args)
     db.commit()
 
+
 def verify_google_token(token):
     id_info = id_token.verify_oauth2_token(
         token,
@@ -91,6 +88,72 @@ def verify_google_token(token):
         "name": id_info.get("name", email.split("@")[0]),
         "should_be_admin": is_allowlisted_admin,
     }
+
+
+@app.route("/login", methods=["POST"])
+def login_data():
+    payload = request.get_json(silent=True) or {}
+    token = payload.get("credential")
+
+    if not token:
+        return jsonify({"error": "missing sign-in token."}), 400
+
+    try:
+        user_data = verify_google_token(token)
+    except (ValueError, GoogleAuthError) as error:
+        app.logger.warning("google token rejected: %s", error)
+        return jsonify({"error": "sign-in failed. please try again."}), 401
+
+    if user_data is None:
+        return jsonify({"error": "unauthorized domain"}), 403
+
+    user = query_db(
+        "SELECT * FROM Users WHERE google_id=?",
+        (user_data["google_id"],), one=True
+    )
+
+    if user is None:
+        is_admin = 1 if user_data["should_be_admin"] else 0
+
+        try:
+            execute_db(
+                "INSERT INTO Users (google_id, email, name, is_admin) "
+                "VALUES (?, ?, ?, ?)",
+                (user_data["google_id"], user_data["email"],
+                 user_data["name"], is_admin)
+            )
+        except sqlite3.IntegrityError:
+            pass
+
+        user = query_db(
+            "SELECT * FROM Users WHERE google_id=?",
+            (user_data["google_id"],), one=True
+        )
+
+        if user is None:
+            return jsonify({"error": "could not create your account."}), 500
+
+    else:
+        if user_data["should_be_admin"] and not user["is_admin"]:
+            execute_db("UPDATE Users SET is_admin=1 WHERE id=?", (user["id"],))
+
+        if user["name"] != user_data["name"]:
+            execute_db(
+                "UPDATE Users SET name=? WHERE id=?",
+                (user_data["name"], user["id"])
+            )
+
+        user = query_db("SELECT * FROM Users WHERE id=?", (user["id"],), one=True)
+
+    session.clear()
+    session.permanent = True
+    session["user_id"] = user["id"]
+    session["user_email"] = user["email"]
+    session["user_name"] = user["name"]
+    session["is_admin"] = bool(user["is_admin"])
+
+    return jsonify({"success": True})
+
 
 if __name__ == "__main__":
     app.run(debug=True)

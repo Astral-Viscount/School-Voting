@@ -1,0 +1,34 @@
+{% extends "layout.html" %}
+
+{% block title %}
+Login
+{% endblock %}
+
+{% block content %}
+<div class="main-card login-card">
+    <h1>School Voting</h1>
+    <p>Secure student authentication</p>
+
+    <div id="g_id_onload"
+         data-client_id="{{ client_id }}"
+         data-callback="handle_credential_response"
+         data-auto_prompt="false">
+    </div>
+    
+    <div class="g_id_signin" data-type="standard"></div>
+
+    <br>
+    <a href="{{ url_for('home') }}" class="btn outline">Back</a>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+
+<script>
+    window.LOGIN_URL = "{{ url_for('login_data') }}";
+    window.DASHBOARD_URL = "{{ url_for('dashboard') }}";
+</script>
+
+{% endblock %}

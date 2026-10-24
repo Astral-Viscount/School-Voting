@@ -1,0 +1,12 @@
+.env
+*.db
+
+__pycache__/
+.pytest_cache/
+
+venv/
+.venv/
+
+.vscode/
+
+static/uploads/

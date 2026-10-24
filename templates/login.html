@@ -14,7 +14,7 @@ Login
          data-callback="handle_credential_response"
          data-auto_prompt="false">
     </div>
-    
+
     <div class="g_id_signin" data-type="standard"></div>
 
     <br>
@@ -25,6 +25,8 @@ Login
 
 {% block scripts %}
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+<script src="{{ url_for('static', filename='js/login.js') }}"></script>
 
 <script>
     window.LOGIN_URL = "{{ url_for('login_data') }}";

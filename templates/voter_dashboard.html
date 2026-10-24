@@ -1,0 +1,12 @@
+{% extends "layout.html" %}
+
+{% block title %}
+Voter Dashboard
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Welcome, {{ user.name }} <span class="badge voter">Voter</span></h2>
+    <p>There's no active election yet. Check back soon.</p>
+</div>
+{% endblock %}

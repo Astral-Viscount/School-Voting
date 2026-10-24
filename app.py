@@ -195,10 +195,6 @@ def admin_required(view):
     return wrapped
 
 
-# ---------------------------------------------------------------------------
-# Routes
-# ---------------------------------------------------------------------------
-
 @app.route("/")
 def home():
     return render_template("index.html", user=session.get("user_name"))
@@ -218,7 +214,6 @@ def logout():
 @app.route("/dashboard")
 @login_required
 def dashboard():
-    """Role router: send each user to the dashboard that applies to them."""
     if get_current_user()["is_admin"]:
         return redirect(url_for("admin_dashboard"))
 

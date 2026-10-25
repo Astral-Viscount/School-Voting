@@ -283,6 +283,7 @@ def internal_error(error):
     return render_template("500.html"), 500
 
 
+#Testing routes and errors
 @app.route("/test")
 def test():
     raise RuntimeError("test")

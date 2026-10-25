@@ -6,7 +6,7 @@
     <meta name="csrf-token" content="{{ csrf_token }}">
     <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link rel="icon" href="data:,">
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='assets/logo-icon.svg') }}">
     <title>{% block title %}
         School Voting
         {% endblock %}
@@ -16,8 +16,7 @@
 <body>
     <header class="site-header">
         <a href="{{ url_for('home') }}" class="brand">
-            <span class="brand-name">School Voting</span>
-            <span class="brand-sub">Student Prefect Election</span>
+            <img src="{{ url_for('static', filename='assets/logo.svg') }}" alt="School Voting" height="44">
         </a>
 
         {% if session.get('user_id') %}

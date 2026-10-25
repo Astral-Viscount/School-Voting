@@ -294,6 +294,11 @@ body {
     padding: 20px;
 }
 
+.privacy {
+    color: var(--bhs-pounamu); 
+    margin-top: 22px;
+}
+
 @media (min-width: 1024px) {
     .site-nav {
         display: flex !important;

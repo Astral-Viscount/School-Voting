@@ -95,6 +95,16 @@ def inject_csrf_token():
     return {"csrf_token": session["csrf_token"]}
 
 
+@app.after_request
+def add_security_headers(response):
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault("Permissions-Policy", "camera=(), geolocation=()")
+
+    return response
+
+
 def verify_google_token(token):
     id_info = id_token.verify_oauth2_token(
         token,

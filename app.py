@@ -300,14 +300,28 @@ def internal_error(error):
     return render_template("500.html"), 500
 
 
+@app.route("/privacy")
+def privacy():
+    return render_template("privacy.html")
+
+
+#Debugging
 #Testing routes and errors
 @app.route("/test")
 def test():
     raise RuntimeError("test")
 
-@app.route("/privacy")
-def privacy():
-    return render_template("privacy.html")
+
+#should return 200 if ok
+@app.route("/health")
+def health():
+    try:
+        query_db("SELECT 1", one=True)
+    except sqlite3.Error:
+        return jsonify({"status": "error"}), 503
+
+    return jsonify({"status": "ok"})
+
 
 if __name__ == "__main__":
     app.run(debug=True)

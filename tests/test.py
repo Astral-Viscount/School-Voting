@@ -114,3 +114,37 @@ def test_post_with_valid_csrf_token_passes_the_check(client):
     response = client.post("/dashboard", headers={"X-CSRFToken": "abc123"})
 
     assert response.status_code == 405
+
+
+def test_security_headers_are_present(client):
+    response = client.get("/")
+
+    assert response.headers["X-Content-Type-Options"] == "nosniff"
+    assert response.headers["X-Frame-Options"] == "SAMEORIGIN"
+    assert "Referrer-Policy" in response.headers
+
+
+def test_wrong_method_shows_405_page(client):
+    login_as(client, STUDENT_ID)
+
+    with client.session_transaction() as sess:
+        sess["csrf_token"] = "abc123"
+
+    response = client.post("/dashboard", headers={"X-CSRFToken": "abc123"})
+
+    assert response.status_code == 405
+    assert "405" in response.get_data(as_text=True)
+
+
+def test_logout_shows_message(client):
+    login_as(client, STUDENT_ID)
+    response = client.get("/logout", follow_redirects=True)
+
+    assert "signed out" in response.get_data(as_text=True)
+
+
+def test_health_check_is_ok(client):
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    assert response.get_json() == {"status": "ok"}

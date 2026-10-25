@@ -6,7 +6,7 @@ from functools import wraps
 from dotenv import load_dotenv
 from flask import (
     Flask, abort, g, jsonify, redirect, render_template, request,
-    session, url_for
+    session, url_for, flash
 )
 from google.auth.exceptions import GoogleAuthError
 from google.auth.transport import requests as google_requests
@@ -250,6 +250,8 @@ def login_page():
 @app.route("/logout")
 def logout():
     session.clear()
+    flash("You've been signed out.", "info")
+
     return redirect(url_for("home"))
 
 

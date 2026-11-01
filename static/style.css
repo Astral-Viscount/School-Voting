@@ -326,3 +326,128 @@ body {
         font-size: 13px; 
     }
 }
+
+input, textarea, select {
+    font-family: var(--font);
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1.5px solid #d6e0db;
+    width: 100%;
+    font-size: 14px;
+    background: white;
+}
+
+select {
+    width: auto;
+    min-width: 220px;
+    cursor: pointer;
+}
+
+input:focus, textarea:focus, select:focus {
+    outline: none;
+    border-color: var(--glacier-green);
+    box-shadow: 0 0 0 3px rgba(0, 171, 142, 0.18);
+}
+
+label {
+    display: block;
+    font-weight: 600;
+    margin: 12px 0 4px;
+    color: var(--bush-green);
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th, td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid #e7ede9;
+    font-size: 14px;
+    overflow-wrap: anywhere;
+}
+
+th {
+    color: var(--bush-green);
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.table-responsive table {
+    min-width: 560px;
+}
+
+.admin-breadcrumb { 
+    margin-bottom: 4px; 
+}
+
+.admin-breadcrumb a {
+    color: var(--glacier-green);
+    font-weight: 600;
+    font-size: 14px;
+    text-decoration: none;
+}
+
+.admin-breadcrumb a:hover { 
+    text-decoration: underline; 
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-top: 12px;
+}
+
+.stat-box {
+    text-align: center;
+    background: #f4f8f6;
+    border-radius: 10px;
+    padding: 16px 8px;
+}
+
+.stat-number {
+    display: block;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--pounamu);
+}
+
+.stat-label { 
+    font-size: 13px; 
+    color: #4d5a56; 
+}
+
+.action-buttons {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.action-buttons form { 
+    margin: 0; 
+}
+
+.action-buttons .btn { 
+    min-width: 108px; 
+    text-align: center; 
+}
+
+.badge.live { 
+    background: var(--glacier-green); 
+    color: white; 
+}
+
+.muted { 
+    color: #4d5a56; 
+    font-size: 13px; 
+}

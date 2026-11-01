@@ -1,0 +1,66 @@
+{% extends "layout.html" %}
+
+{% block title %}
+Manage Elections
+{% endblock %}
+
+{% block content %}
+<p class="admin-breadcrumb"><a href="{{ url_for('admin_dashboard') }}">Back to Admin Dashboard</a></p>
+
+<div class="card">
+    <h2>Create election</h2>
+
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="action" value="create">
+
+        <label for="title">Title</label>
+        <input type="text" id="title" name="title" maxlength="100" required>
+
+        <label for="description">Description</label>
+        <textarea id="description" name="description" rows="3" maxlength="1000"></textarea>
+
+        <label for="start-date">Voting opens</label>
+        <input type="datetime-local" id="start-date" name="start_date">
+
+        <label for="end-date">Voting closes</label>
+        <input type="datetime-local" id="end-date" name="end_date">
+
+        <button type="submit" class="btn glacier" style="margin-top:14px;">Create election</button>
+    </form>
+</div>
+
+<div class="card">
+    <h2>All elections</h2>
+
+    {% if elections %}
+    <div class="table-responsive">
+    <table>
+        <tr>
+            <th>Title</th>
+            <th>Voting window</th>
+            <th>Status</th>
+        </tr>
+
+        {% for election in elections %}
+        <tr>
+            <td>{{ election.title }}</td>
+            <td>{{ election.start_date|datetime }} to {{ election.end_date|datetime }}</td>
+            <td>
+                {% if election.is_active %}
+                    <span class="badge live">Live</span>
+                {% else %}
+                    <span class="badge voter">Inactive</span>
+                {% endif %}
+            </td>
+        </tr>
+        
+        {% endfor %}
+    </table>
+    </div>
+
+    {% else %}
+        <p>No elections yet. Create one above.</p>
+    {% endif %}
+</div>
+{% endblock %}

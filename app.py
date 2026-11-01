@@ -349,6 +349,66 @@ def admin_dashboard():
     )
 
 
+def check_election_dates(start_date, end_date):
+    start_dt = parse_date(start_date)
+    end_dt = parse_date(end_date)
+
+    if start_date and start_dt is None:
+        return "The start date isn't valid."
+
+    if end_date and end_dt is None:
+        return "The end date isn't valid."
+
+    if end_dt and end_dt <= now_nz():
+        return "The end date/time must be in the future."
+
+    if start_dt and end_dt and end_dt <= start_dt:
+        return "The end date/time must be after the start date/time."
+
+    return None
+
+
+def get_election(election_id):
+    return query_db(
+        "SELECT * FROM Election WHERE id=?", (election_id,), one=True
+    )
+
+
+@app.route("/admin/elections", methods=["GET", "POST"])
+@admin_required
+def admin_elections():
+    if request.method == "POST":
+        action = request.form.get("action")
+
+        if action == "create":
+            title = request.form.get("title", "").strip()[:100]
+            description = request.form.get("description", "").strip()[:1000]
+            start_date = request.form.get("start_date") or None
+            end_date = request.form.get("end_date") or None
+
+            if not title:
+                error = "Please give the election a title."
+            else:
+                error = check_election_dates(start_date, end_date)
+
+            if error:
+                flash(error, "error")
+            else:
+                execute_db(
+                    "INSERT INTO Election "
+                    "(title, description, start_date, end_date, is_active) "
+                    "VALUES (?, ?, ?, ?, 0)",
+                    (title, description, start_date, end_date)
+                )
+                flash("Election created.", "success")
+
+        return redirect(url_for("admin_elections"))
+
+    elections = query_db("SELECT * FROM Election ORDER BY id DESC")
+
+    return render_template("admin_elections.html", elections=elections)
+
+
 @app.errorhandler(403)
 def forbidden(error):
     return render_template("403.html"), 403

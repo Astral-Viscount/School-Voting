@@ -41,6 +41,7 @@ The demo site is reset from time to time, so anything you create may disappear. 
 ![alt text](screenshots/image-7.png)
 
 **Phone layout:** responsive layout with a menu toggle
+
 ![alt text](screenshots/image-5.png)
 ![alt text](screenshots/image-6.png)
 

@@ -243,6 +243,27 @@ def get_current_user():
     return g.current_user
 
 
+def get_active_election():
+    return query_db("SELECT * FROM Election WHERE is_active=1", one=True)
+
+
+def voting_is_open(election):
+    if not election or not election["is_active"]:
+        return False, "there's no election running right now."
+
+    now = now_nz()
+    start = parse_date(election["start_date"])
+    end = parse_date(election["end_date"])
+
+    if start and now < start:
+        return False, f"Voting starts {start.strftime('%d %b %Y, %I:%M %p')}."
+
+    if end and now > end:
+        return False, "Voting has closed for this election."
+
+    return True, None
+    
+
 def login_required(view):
     @wraps(view)
     def wrapped(*args, **kwargs):

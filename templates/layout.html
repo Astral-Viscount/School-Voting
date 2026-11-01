@@ -25,6 +25,10 @@
         <nav class="site-nav" id="site-nav">
             <a href="{{ url_for('dashboard') }}">Dashboard</a>
 
+            {% if session.get('is_admin') %}
+                <a href="{{ url_for('admin_elections') }}">Elections</a>
+            {% endif %}
+
             <div class="nav-account">
                 <span class="nav-user">{{ session.get('user_name') }}</span>
                 <a href="{{ url_for('logout') }}" class="btn danger">Log out</a>

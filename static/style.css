@@ -451,3 +451,35 @@ th {
     color: #4d5a56; 
     font-size: 13px; 
 }
+
+.admin-tool-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 14px;
+    margin-top: 12px;
+}
+
+.admin-tool-card {
+    display: block;
+    border: 1.5px solid #e7ede9;
+    border-radius: var(--radius);
+    padding: 16px;
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 0.15s ease;
+}
+
+.admin-tool-card:hover { 
+    border-color: var(--glacier-green); 
+}
+
+.admin-tool-card h4 { 
+    margin: 0 0 6px; 
+    color: var(--pounamu); 
+}
+
+.admin-tool-card p { 
+    margin: 0; 
+    font-size: 13px; 
+    color: #4d5a56; 
+}

@@ -1,0 +1,88 @@
+{% extends "layout.html" %}
+
+{% block title %}
+Manage Positions
+{% endblock %}
+
+{% block content %}
+<p class="admin-breadcrumb"><a href="{{ url_for('admin_dashboard') }}">Back to Admin Dashboard</a></p>
+
+<div class="card">
+    <h2>Manage positions</h2>
+
+    <form method="GET">
+        <label for="election-select">Election</label>
+        <select id="election-select" name="election_id" onchange="this.form.submit()">
+            <option value="">Select an election</option>
+
+            {% for election in elections %}
+            <option value="{{ election.id }}" {% if election_id == election.id %}selected{% endif %}>
+                {{ election.title }}
+            </option>
+            {% endfor %}
+        </select>
+        <noscript><button type="submit" class="btn outline small">Show</button></noscript>
+    </form>
+</div>
+
+{% if election_id %}
+
+<div class="card">
+    <h3>Add a position</h3>
+
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="action" value="create">
+        <input type="hidden" name="election_id" value="{{ election_id }}">
+
+        <label for="position-name">Position name</label>
+        <input type="text" id="position-name" name="position_name" maxlength="100" required placeholder="e.g. Head Prefect">
+
+        <label for="max-votes">Winners</label>
+        <input type="number" id="max-votes" name="max_votes" value="1" min="1" max="10">
+
+        <button type="submit" class="btn glacier" style="margin-top:14px;">Add position</button>
+    </form>
+</div>
+
+<div class="card">
+    <h3>Positions in this election</h3>
+
+    {% if positions %}
+    <div class="table-responsive">
+    <table>
+        <tr>
+            <th>Position</th>
+            <th>Winners</th>
+            <th>Actions</th>
+        </tr>
+
+        {% for position in positions %}
+        <tr>
+            <td>{{ position.position_name }}</td>
+            <td>{{ position.max_votes }}</td>
+            <td>
+                <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="action" value="delete">
+                    <input type="hidden" name="position_id" value="{{ position.id }}">
+                    <input type="hidden" name="election_id" value="{{ election_id }}">
+                    <button type="submit" class="btn danger small">Remove</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    </div>
+
+    {% else %}
+        <p>No positions yet. Add one above.</p>
+    {% endif %}
+</div>
+
+{% else %}
+<div class="card">
+    <p>Select an election above to manage its positions.</p>
+</div>
+{% endif %}
+{% endblock %}

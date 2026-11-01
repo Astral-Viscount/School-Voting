@@ -68,6 +68,8 @@ Manage Elections
                             <button type="submit" class="btn glacier small">Activate</button>
                         {% endif %}
                     </form>
+
+                    <a href="{{ url_for('admin_positions', election_id=election.id) }}" class="btn outline small">Positions</a>
                 </div>
             </td>
         </tr>

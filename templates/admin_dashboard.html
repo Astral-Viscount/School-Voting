@@ -56,7 +56,13 @@ Admin
             <h4>Elections</h4>
             <p>Create elections, set voting windows, activate or close voting</p>
         </a>
+
+        <a href="{{ url_for('admin_positions') }}" class="admin-tool-card">
+            <h4>Positions</h4>
+            <p>Add or remove the roles being voted on</p>
+        </a>
     </div>
+    
 </div>
 
 {% endblock %}

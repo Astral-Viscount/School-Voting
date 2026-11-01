@@ -27,6 +27,7 @@
 
             {% if session.get('is_admin') %}
                 <a href="{{ url_for('admin_elections') }}">Elections</a>
+                <a href="{{ url_for('admin_positions') }}">Positions</a>
             {% endif %}
 
             <div class="nav-account">

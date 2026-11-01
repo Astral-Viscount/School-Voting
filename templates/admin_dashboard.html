@@ -1,17 +1,51 @@
 {% extends "layout.html" %}
 
 {% block title %}
-Admin Dashboard
+Admin 
 {% endblock %}
 
 {% block content %}
 <div class="card">
     <h2>Welcome, {{ user.name }} <span class="badge admin">Admin</span></h2>
-    <p>You're signed in as <strong>{{ user.email }}</strong>.</p>
+    <h3>Election control centre</h3>
+
+    {% if election %}
+        <p>
+            <strong>{{ election.title }}</strong>
+
+            {% if election.is_active %}
+                <span class="badge live">Live</span>
+            {% else %}
+                <span class="badge voter">Inactive</span>
+            {% endif %}
+        </p>
+
+        <p class="muted">{{ election.start_date|datetime }} to {{ election.end_date|datetime }}</p>
+
+    {% else %}
+        <p>No election has been created yet. Elections are created from the admin tools below.</p>
+    {% endif %}
 </div>
 
 <div class="card">
-    <h3>Admin tools</h3>
-    <p>Election management</p>
+    <h3>Currently</h3>
+
+    <div class="stats-grid">
+        <div class="stat-box">
+            <span class="stat-number">{{ stats.elections }}</span>
+            <span class="stat-label">Elections</span>
+        </div>
+
+        <div class="stat-box">
+            <span class="stat-number">{{ stats.positions }}</span>
+            <span class="stat-label">Positions</span>
+        </div>
+
+        <div class="stat-box">
+            <span class="stat-number">{{ stats.users }}</span>
+            <span class="stat-label">Signed-up users</span>
+        </div>
+    </div>
 </div>
+
 {% endblock %}

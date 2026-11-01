@@ -327,7 +327,26 @@ def voter_dashboard():
 @app.route("/admin")
 @admin_required
 def admin_dashboard():
-    return render_template("admin_dashboard.html", user=get_current_user())
+    election = get_active_election() or query_db(
+        "SELECT * FROM Election ORDER BY id DESC", one=True
+    )
+
+    stats = {
+        "elections": query_db("SELECT COUNT(*) AS c FROM Election", one=True)["c"],
+        "positions": 0,
+        "users": query_db("SELECT COUNT(*) AS c FROM Users", one=True)["c"],
+    }
+
+    if election:
+        stats["positions"] = query_db(
+            "SELECT COUNT(*) AS c FROM Positions WHERE election_id=?",
+            (election["id"],), one=True
+        )["c"]
+
+    return render_template(
+        "admin_dashboard.html",
+        user=get_current_user(), election=election, stats=stats
+    )
 
 
 @app.errorhandler(403)

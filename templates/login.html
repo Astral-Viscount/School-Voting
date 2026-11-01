@@ -19,6 +19,16 @@ Login
 
     <br>
     <a href="{{ url_for('home') }}" class="btn outline">Back</a>
+
+    {% if demo_mode %}
+        <hr class="divider">
+        <p class="muted">For Reviewers</p>
+
+        <form method="POST" action="{{ url_for('demo_admin') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="btn outline">Try the admin demo</button>
+        </form>
+    {% endif %}
 </div>
 
 {% endblock %}

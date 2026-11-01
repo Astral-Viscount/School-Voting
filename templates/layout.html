@@ -14,6 +14,10 @@
 </head>
 
 <body>
+    {% if demo_mode %}
+        <div class="demo-banner">Demo Mode. Anything you create here may be reset.</div>
+    {% endif %}
+    
     <header class="site-header">
         <a href="{{ url_for('home') }}" class="brand">
             <img src="{{ url_for('static', filename='assets/logo.svg') }}" alt="School Voting" height="44">

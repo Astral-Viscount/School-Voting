@@ -483,3 +483,19 @@ th {
     font-size: 13px; 
     color: #4d5a56; 
 }
+
+
+.demo-banner {
+    background: var(--gold-accent);
+    color: #3a2f00;
+    text-align: center;
+    padding: 8px 16px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.divider {
+    border: none;
+    border-top: 1px solid #e7ede9;
+    margin: 24px 0;
+}

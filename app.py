@@ -42,6 +42,12 @@ SCHOOL_DOMAINS = env_set("SCHOOL_DOMAIN")
 DATABASE = "voting.db"
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 
+DEMO_MODE = os.getenv("DEMO_MODE")
+DEMO_ADMIN_EMAIL = "demoadmin@schoolvoting.demo"
+
+if DEMO_MODE:
+    app.logger.warning("DEMO_MODE is ON. Anyone can sign in and try the admin demo.")
+
 NZ_TIME = ZoneInfo("Pacific/Auckland")
 
 def get_db():
@@ -151,7 +157,10 @@ def verify_google_token(token):
 
     email = id_info["email"].lower()
 
-    is_school_account = any(email.endswith(domain) for domain in SCHOOL_DOMAINS)
+    is_school_account = DEMO_MODE or any(
+        email.endswith(domain) for domain in SCHOOL_DOMAINS
+    )
+
     is_allowlisted_admin = email in ADMIN_EMAILS
 
     if not (is_school_account or is_allowlisted_admin):
@@ -554,6 +563,40 @@ def internal_error(error):
 @app.route("/privacy")
 def privacy():
     return render_template("privacy.html")
+
+
+@app.route("/demo-admin", methods=["POST"])
+def demo_admin():
+    if not DEMO_MODE:
+        abort(404)
+
+    user = query_db(
+        "SELECT * FROM Users WHERE email=?", (DEMO_ADMIN_EMAIL,), one=True
+    )
+
+    if user is None:
+        execute_db(
+            "INSERT INTO Users (google_id, email, name, is_admin) "
+            "VALUES (?, ?, ?, 1)",
+            ("demo-admin", DEMO_ADMIN_EMAIL, "Demo Admin")
+        )
+        user = query_db(
+            "SELECT * FROM Users WHERE email=?", (DEMO_ADMIN_EMAIL,), one=True
+        )
+
+    session.clear()
+    session.permanent = True
+    session["user_id"] = user["id"]
+    session["user_email"] = user["email"]
+    session["user_name"] = user["name"]
+    session["is_admin"] = True
+
+    return redirect(url_for("admin_dashboard"))
+
+
+@app.context_processor
+def inject_demo_mode():
+    return {"demo_mode": DEMO_MODE}
 
 
 #Debugging

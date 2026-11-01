@@ -2,6 +2,8 @@ import os
 import secrets
 import sqlite3
 from functools import wraps
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 from flask import (
@@ -40,6 +42,7 @@ SCHOOL_DOMAINS = env_set("SCHOOL_DOMAIN")
 DATABASE = "voting.db"
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 
+NZ_TIME = ZoneInfo("Pacific/Auckland")
 
 def get_db():
     db = getattr(g, "_database", None)
@@ -68,6 +71,36 @@ def execute_db(query, args=()):
     db.execute(query, args)
     db.commit()
 
+
+def now_nz():
+    return datetime.now(NZ_TIME).replace(tzinfo=None)
+
+
+def parse_date(value):
+    if not value:
+        return None
+
+    for candidate in (value, value + ":00"):
+        try:
+            return datetime.fromisoformat(candidate)
+        except ValueError:
+            continue
+
+    return None
+
+
+def format_datetime(value):
+    date_time = parse_date(value)
+
+    if not date_time:
+        return "not set"
+
+    return date_time.strftime("%d %b %Y, %I:%M %p")
+
+
+@app.template_filter("datetime")
+def datetime_filter(value):
+    return format_datetime(value)
 
 @app.before_request
 def csrf_protect():

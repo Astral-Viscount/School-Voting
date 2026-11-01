@@ -40,6 +40,7 @@ Manage Elections
             <th>Title</th>
             <th>Voting window</th>
             <th>Status</th>
+            <th>Actions</th>
         </tr>
 
         {% for election in elections %}
@@ -53,8 +54,24 @@ Manage Elections
                     <span class="badge voter">Inactive</span>
                 {% endif %}
             </td>
+            <td>
+                <div class="action-buttons">
+                    <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <input type="hidden" name="election_id" value="{{ election.id }}">
+
+                        {% if election.is_active %}
+                            <input type="hidden" name="action" value="deactivate">
+                            <button type="submit" class="btn danger small">Deactivate</button>
+                        {% else %}
+                            <input type="hidden" name="action" value="activate">
+                            <button type="submit" class="btn glacier small">Activate</button>
+                        {% endif %}
+                    </form>
+                </div>
+            </td>
         </tr>
-        
+
         {% endfor %}
     </table>
     </div>

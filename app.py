@@ -401,6 +401,43 @@ def admin_elections():
                     (title, description, start_date, end_date)
                 )
                 flash("Election created.", "success")
+        
+        elif action == "activate":
+            election = get_election(request.form.get("election_id"))
+
+            if election is None:
+                flash("Election not found.", "error")
+            else:
+                end = parse_date(election["end_date"])
+
+                if end and now_nz() > end:
+                    flash(
+                        f"Can't activate '{election['title']}': its end time "
+                        "has already passed. Create a new election instead.",
+                        "error"
+                    )
+                else:
+                    execute_db(
+                        "UPDATE Election "
+                        "SET is_active = CASE WHEN id=? THEN 1 ELSE 0 END",
+                        (election["id"],)
+                    )
+                    flash(
+                        f"'{election['title']}' is now live. Any other "
+                        "election was switched off.", "success"
+                    )
+
+        elif action == "deactivate":
+            election = get_election(request.form.get("election_id"))
+
+            if election is None:
+                flash("Election not found.", "error")
+            else:
+                execute_db(
+                    "UPDATE Election SET is_active=0 WHERE id=?",
+                    (election["id"],)
+                )
+                flash(f"'{election['title']}' has been deactivated.", "info")
 
         return redirect(url_for("admin_elections"))
 

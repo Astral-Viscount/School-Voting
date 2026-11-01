@@ -321,7 +321,22 @@ def dashboard():
 @app.route("/voter")
 @login_required
 def voter_dashboard():
-    return render_template("voter_dashboard.html", user=get_current_user())
+    election = get_active_election()
+    is_open, message = voting_is_open(election)
+
+    positions = []
+
+    if election:
+        positions = query_db(
+            "SELECT * FROM Positions WHERE election_id=? ORDER BY id",
+            (election["id"],)
+        )
+
+    return render_template(
+        "voter_dashboard.html",
+        user=get_current_user(), election=election, positions=positions,
+        voting_open=is_open, voting_message=message
+    )
 
 
 @app.route("/admin")
@@ -509,27 +524,6 @@ def admin_positions():
     return render_template(
         "admin_positions.html",
         elections=elections, positions=positions, election_id=election_id
-    )
-
-
-@app.route("/voter")
-@login_required
-def voter_dashboard():
-    election = get_active_election()
-    is_open, message = voting_is_open(election)
-
-    positions = []
-
-    if election:
-        positions = query_db(
-            "SELECT * FROM Positions WHERE election_id=? ORDER BY id",
-            (election["id"],)
-        )
-
-    return render_template(
-        "voter_dashboard.html",
-        user=get_current_user(), election=election, positions=positions,
-        voting_open=is_open, voting_message=message
     )
 
 

@@ -446,6 +446,72 @@ def admin_elections():
     return render_template("admin_elections.html", elections=elections)
 
 
+@app.route("/admin/positions", methods=["GET", "POST"])
+@admin_required
+def admin_positions():
+    election_id = request.values.get("election_id", type=int)
+
+    if request.method == "POST":
+        action = request.form.get("action")
+
+        if get_election(election_id) is None:
+            flash("Please choose an election first.", "error")
+            return redirect(url_for("admin_positions"))
+
+        if action == "create":
+            position_name = request.form.get("position_name", "").strip()[:100]
+
+            try:
+                max_votes = int(request.form.get("max_votes", 1))
+            except ValueError:
+                max_votes = 1
+
+            max_votes = max(1, min(max_votes, 10))
+
+            duplicate = query_db(
+                "SELECT id FROM Positions "
+                "WHERE election_id=? AND LOWER(position_name)=LOWER(?)",
+                (election_id, position_name), one=True
+            )
+
+            if not position_name:
+                flash("Please enter a position name.", "error")
+            elif duplicate:
+                flash(f"'{position_name}' already exists in this election.", "error")
+            else:
+                execute_db(
+                    "INSERT INTO Positions (election_id, position_name, max_votes) "
+                    "VALUES (?, ?, ?)",
+                    (election_id, position_name, max_votes)
+                )
+                flash("Position added.", "success")
+
+        elif action == "delete":
+            position_id = request.form.get("position_id", type=int)
+
+            execute_db(
+                "DELETE FROM Positions WHERE id=? AND election_id=?",
+                (position_id, election_id)
+            )
+            flash("Position removed.", "info")
+
+        return redirect(url_for("admin_positions", election_id=election_id))
+
+    elections = query_db("SELECT * FROM Election ORDER BY id DESC")
+    positions = []
+
+    if election_id:
+        positions = query_db(
+            "SELECT * FROM Positions WHERE election_id=? ORDER BY id",
+            (election_id,)
+        )
+
+    return render_template(
+        "admin_positions.html",
+        elections=elections, positions=positions, election_id=election_id
+    )
+
+
 @app.errorhandler(403)
 def forbidden(error):
     return render_template("403.html"), 403

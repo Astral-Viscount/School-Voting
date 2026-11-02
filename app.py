@@ -25,7 +25,7 @@ app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["PERMANENT_SESSION_LIFETIME"] = 60 * 60 * 8
-app.config["SESSION_COOKIE_SECURE"] = os.getenv("COOKIE_SECURE") == "1"
+app.config["SESSION_COOKIE_SECURE"] = os.getenv("COOKIE_SECURE")
 
 
 if not app.config["SECRET_KEY"]:
@@ -52,6 +52,12 @@ if DEMO_MODE:
     app.logger.warning("DEMO_MODE is ON. Anyone can sign in and try the admin demo.")
 
 NZ_TIME = ZoneInfo("Pacific/Auckland")
+
+UPLOAD_FOLDER = os.path.join(app.root_path, "static", "uploads", "candidates")
+ALLOWED_IMAGE_EXT = {"png", "jpg", "jpeg", "webp"}
+ALLOWED_AUDIO_EXT = {"webm", "ogg", "wav", "mp3", "m4a", "mp4"}
+
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
 
 def get_db():
     db = getattr(g, "_database", None)
@@ -973,6 +979,130 @@ def candidate_dashboard():
         election=get_election(candidacy["election_id"]),
         media=parse_media(candidacy["photo"]),
     )
+
+
+def read_head(file, size=12):
+    head = file.stream.read(size)
+    file.stream.seek(0)
+
+    return head
+
+
+def is_real_image(file, ext):
+    head = read_head(file)
+
+    if ext == "png":
+        return head.startswith(b"\x89PNG\r\n\x1a\n")
+
+    if ext in ("jpg", "jpeg"):
+        return head.startswith(b"\xff\xd8\xff")
+
+    if ext == "webp":
+        return head[:4] == b"RIFF" and head[8:12] == b"WEBP"
+
+    return False
+
+
+def is_real_audio(file, ext):
+    head = read_head(file)
+
+    if ext == "webm":
+        return head[:4] == b"\x1a\x45\xdf\xa3"
+
+    if ext == "ogg":
+        return head[:4] == b"OggS"
+
+    if ext == "wav":
+        return head[:4] == b"RIFF" and head[8:12] == b"WAVE"
+
+    if ext == "mp3":
+        return head[:3] == b"ID3" or (
+            len(head) > 1 and head[0] == 0xFF and (head[1] & 0xE0) == 0xE0
+        )
+
+    # for safari
+    if ext in ("m4a", "mp4"):
+        return head[4:8] == b"ftyp"
+
+    return False
+
+
+def save_upload(file, candidate_id, kind, allowed, is_valid, old_url=None):
+    ext = os.path.splitext(file.filename)[1].lower().lstrip(".")
+
+    if ext not in allowed:
+        return None, f"A {kind} must be one of: {', '.join(sorted(allowed))}."
+
+    if not is_valid(file, ext):
+        return None, f"That {kind} file isn't really a .{ext} file."
+
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+    filename = f"candidate_{candidate_id}_{kind}.{ext}"
+    file.save(os.path.join(UPLOAD_FOLDER, filename))
+
+    if old_url:
+        old_name = os.path.basename(old_url.split("?")[0])
+
+        if old_name != filename and old_name.startswith(f"candidate_{candidate_id}_"):
+            try:
+                os.remove(os.path.join(UPLOAD_FOLDER, old_name))
+            except OSError:
+                pass
+
+    url = url_for(
+        "static", filename=f"uploads/candidates/{filename}", v=int(time.time())
+    )
+
+    return url, None
+
+
+@app.route("/candidate/profile", methods=["GET", "POST"])
+@candidate_required
+def candidate_profile():
+    user = get_current_user()
+    candidacy = get_current_candidacy(user["id"])
+    media = parse_media(candidacy["photo"])
+
+    if request.method == "POST":
+        bio = request.form.get("bio", "").strip()[:2000]
+        had_error = False
+
+        photo_file = request.files.get("photo_file")
+
+        if photo_file and photo_file.filename:
+            url, error = save_upload(
+                photo_file, candidacy["id"], "photo",
+                ALLOWED_IMAGE_EXT, is_real_image, media.get("photo")
+            )
+
+            if error:
+                flash(error, "error")
+                had_error = True
+            else:
+                media["photo"] = url
+
+        execute_db(
+            "UPDATE Candidates SET bio=?, photo=? WHERE id=? AND user_id=?",
+            (bio, json.dumps(media), candidacy["id"], user["id"])
+        )
+
+        if had_error:
+            flash("The rest of your profile was saved.", "info")
+        else:
+            flash("Profile updated.", "success")
+
+        return redirect(url_for("candidate_dashboard"))
+
+    return render_template(
+        "candidate_profile.html", candidacy=candidacy, media=media
+    )
+
+
+@app.errorhandler(413)
+def upload_too_large(error):
+    flash("That upload was too big. Your photo and voice clip must be under 16 MB together.", "error")
+
+    return redirect(url_for("candidate_profile"))
 
 
 #Debugging

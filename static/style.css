@@ -575,3 +575,18 @@ th {
 .stats-grid { 
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); 
 }
+
+.badge.candidate { 
+    background: var(--glacier-green); 
+    color: white; 
+}
+
+.candidate-preview { 
+    margin-bottom: 16px; 
+}
+
+.candidate-preview audio {
+    display: block;
+    width: 100%;
+    margin-top: 10px;
+}

@@ -29,6 +29,11 @@
         <nav class="site-nav" id="site-nav">
             <a href="{{ url_for('dashboard') }}">Dashboard</a>
 
+            {% if not session.get('is_admin') and is_candidate_ever %}
+                <a href="{{ url_for('candidate_dashboard') }}">My candidacy</a>
+                <a href="{{ url_for('candidate_profile') }}">Edit profile</a>
+            {% endif %}
+
             {% if session.get('is_admin') %}
                 <a href="{{ url_for('admin_elections') }}">Elections</a>
                 <a href="{{ url_for('admin_positions') }}">Positions</a>

@@ -405,8 +405,13 @@ def logout():
 @app.route("/dashboard")
 @login_required
 def dashboard():
-    if get_current_user()["is_admin"]:
+    user = get_current_user()
+
+    if user["is_admin"]:
         return redirect(url_for("admin_dashboard"))
+
+    if is_candidate_in_active_election(user["id"]):
+        return redirect(url_for("candidate_dashboard"))
 
     return redirect(url_for("voter_dashboard"))
 
@@ -954,6 +959,20 @@ def cast_vote(position_id, candidate_id):
         return jsonify({"error": "You've already voted for this position."}), 409
 
     return jsonify({"success": True})
+
+
+@app.route("/candidate")
+@candidate_required
+def candidate_dashboard():
+    user = get_current_user()
+    candidacy = get_current_candidacy(user["id"])
+
+    return render_template(
+        "candidate_dashboard.html",
+        user=user, candidacy=candidacy,
+        election=get_election(candidacy["election_id"]),
+        media=parse_media(candidacy["photo"]),
+    )
 
 
 #Debugging

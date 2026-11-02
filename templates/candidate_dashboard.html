@@ -1,0 +1,43 @@
+{% extends "layout.html" %}
+
+{% block title %}
+Candidate Dashboard
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Welcome, {{ user.name }} <span class="badge candidate">Candidate</span></h2>
+    <p>
+        You're standing for <strong>{{ candidacy.position_name }}</strong>
+        in <strong>{{ election.title }}</strong>.
+    </p>
+    <p class="muted">Candidates can't vote in the election they're standing in.</p>
+</div>
+
+<div class="card">
+    <h3>My profile</h3>
+
+    <div class="candidate-preview">
+        {% if media.photo %}
+        <img src="{{ media.photo }}" alt="Your photo" class="candidate-photo">
+        {% endif %}
+
+        <p>{{ candidacy.bio or "You haven't written a description yet. Add one so voters can learn about you." }}</p>
+
+        {% if media.voice %}
+        <audio controls src="{{ media.voice }}"></audio>
+        {% endif %}
+
+        {% if media.video_url %}
+        <p><a href="{{ media.video_url }}" target="_blank" rel="noopener noreferrer">Watch my introduction video</a></p>
+        {% endif %}
+    </div>
+
+    <a href="{{ url_for('candidate_profile') }}" class="btn glacier">Edit my profile</a>
+</div>
+
+<div class="card">
+    <h3>My results</h3>
+    <p class="muted">Results are hidden from candidates while voting is open. I will add results later</p>
+</div>
+{% endblock %}

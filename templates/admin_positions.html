@@ -78,6 +78,11 @@ Manage Positions
     {% else %}
         <p>No positions yet. Add one above.</p>
     {% endif %}
+
+    <form method="POST" data-confirm="Remove this position and its candidates?"></form>
+    <p style="margin-top:14px;">
+        <a href="{{ url_for('admin_candidates', election_id=election_id) }}" class="btn outline small">Manage candidates for this election</a>
+    </p>
 </div>
 
 {% else %}

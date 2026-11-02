@@ -194,43 +194,53 @@ def login_data():
     if user_data is None:
         return jsonify({"error": "unauthorized domain"}), 403
 
-    user = query_db(
-        "SELECT * FROM Users WHERE google_id=?",
-        (user_data["google_id"],), one=True
-    )
+    user = query_db("""
+        SELECT *
+        FROM Users
+        WHERE google_id=?
+    """, (user_data["google_id"],), one=True)
 
     if user is None:
         is_admin = 1 if user_data["should_be_admin"] else 0
 
         try:
-            execute_db(
-                "INSERT INTO Users (google_id, email, name, is_admin) "
-                "VALUES (?, ?, ?, ?)",
-                (user_data["google_id"], user_data["email"],
-                 user_data["name"], is_admin)
-            )
+            execute_db("""
+                INSERT INTO Users (google_id, email, name, is_admin)
+                VALUES (?, ?, ?, ?)
+            """, (user_data["google_id"], user_data["email"],
+                 user_data["name"], is_admin))
         except sqlite3.IntegrityError:
             pass
 
-        user = query_db(
-            "SELECT * FROM Users WHERE google_id=?",
-            (user_data["google_id"],), one=True
-        )
+        user = query_db("""
+            SELECT *
+            FROM Users
+            WHERE google_id=?
+        """, (user_data["google_id"],), one=True)
 
         if user is None:
             return jsonify({"error": "could not create your account."}), 500
 
     else:
         if user_data["should_be_admin"] and not user["is_admin"]:
-            execute_db("UPDATE Users SET is_admin=1 WHERE id=?", (user["id"],))
+            execute_db("""
+                UPDATE Users
+                SET is_admin=1
+                WHERE id=?
+            """, (user["id"],))
 
         if user["name"] != user_data["name"]:
-            execute_db(
-                "UPDATE Users SET name=? WHERE id=?",
-                (user_data["name"], user["id"])
-            )
+            execute_db("""
+                UPDATE Users
+                SET name=?
+                WHERE id=?
+            """, (user_data["name"], user["id"]))
 
-        user = query_db("SELECT * FROM Users WHERE id=?", (user["id"],), one=True)
+        user = query_db("""
+            SELECT *
+            FROM Users
+            WHERE id=?
+        """, (user["id"],), one=True)
 
     session.clear()
     session.permanent = True
@@ -247,16 +257,21 @@ def get_current_user():
         return None
 
     if not hasattr(g, "current_user"):
-        g.current_user = query_db(
-            "SELECT * FROM Users WHERE id=?",
-            (session["user_id"],), one=True
-        )
+        g.current_user = query_db("""
+            SELECT *
+            FROM Users
+            WHERE id=?
+        """, (session["user_id"],), one=True)
 
     return g.current_user
 
 
 def get_active_election():
-    return query_db("SELECT * FROM Election WHERE is_active=1", one=True)
+    return query_db("""
+        SELECT *
+        FROM Election
+        WHERE is_active=1
+    """, one=True)
 
 
 def voting_is_open(election):
@@ -352,16 +367,19 @@ def voter_dashboard():
     entries = []
 
     if election:
-        positions = query_db(
-            "SELECT * FROM Positions WHERE election_id=? ORDER BY id",
-            (election["id"],)
-        )
+        positions = query_db("""
+            SELECT *
+            FROM Positions
+            WHERE election_id=?
+            ORDER BY id
+        """, (election["id"],))
 
         for position in positions:
-            voted = query_db(
-                "SELECT id FROM Votes WHERE voter_id=? AND position_id=?",
-                (user["id"], position["id"]), one=True
-            )
+            voted = query_db("""
+                SELECT id
+                FROM Votes
+                WHERE voter_id=? AND position_id=?
+            """, (user["id"], position["id"]), one=True)
 
             entries.append({
                 "position": dict(position),
@@ -379,31 +397,34 @@ def voter_dashboard():
 @app.route("/admin")
 @admin_required
 def admin_dashboard():
-    election = get_active_election() or query_db(
-        "SELECT * FROM Election ORDER BY id DESC", one=True
-    )
+    election = get_active_election() or query_db("""
+        SELECT *
+        FROM Election
+        ORDER BY id DESC
+    """, one=True)
 
     stats = {"positions": 0, "candidates": 0, "votes": 0}
 
     if election:
-        stats["positions"] = query_db(
-            "SELECT COUNT(*) AS c FROM Positions WHERE election_id=?",
-            (election["id"],), one=True
-        )["c"]
+        stats["positions"] = query_db("""
+            SELECT COUNT(*) AS c
+            FROM Positions
+            WHERE election_id=?
+        """, (election["id"],), one=True)["c"]
 
-        stats["candidates"] = query_db(
-            "SELECT COUNT(*) AS c FROM Candidates "
-            "JOIN Positions ON Candidates.position_id = Positions.id "
-            "WHERE Positions.election_id=?",
-            (election["id"],), one=True
-        )["c"]
+        stats["candidates"] = query_db("""
+            SELECT COUNT(*) AS c
+            FROM Candidates
+            JOIN Positions ON Candidates.position_id = Positions.id
+            WHERE Positions.election_id=?
+        """, (election["id"],), one=True)["c"]
         
-        stats["votes"] = query_db(
-            "SELECT COUNT(*) AS c FROM Votes "
-            "JOIN Positions ON Votes.position_id = Positions.id "
-            "WHERE Positions.election_id=?",
-            (election["id"],), one=True
-        )["c"]
+        stats["votes"] = query_db("""
+            SELECT COUNT(*) AS c
+            FROM Votes
+            JOIN Positions ON Votes.position_id = Positions.id
+            WHERE Positions.election_id=?
+        """, (election["id"],), one=True)["c"]
 
     return render_template(
         "admin_dashboard.html",
@@ -431,9 +452,11 @@ def check_election_dates(start_date, end_date):
 
 
 def get_election(election_id):
-    return query_db(
-        "SELECT * FROM Election WHERE id=?", (election_id,), one=True
-    )
+    return query_db("""
+        SELECT *
+        FROM Election
+        WHERE id=?
+    """, (election_id,), one=True)
 
 
 @app.route("/admin/elections", methods=["GET", "POST"])
@@ -456,12 +479,10 @@ def admin_elections():
             if error:
                 flash(error, "error")
             else:
-                execute_db(
-                    "INSERT INTO Election "
-                    "(title, description, start_date, end_date, is_active) "
-                    "VALUES (?, ?, ?, ?, 0)",
-                    (title, description, start_date, end_date)
-                )
+                execute_db("""
+                    INSERT INTO Election (title, description, start_date, end_date, is_active)
+                    VALUES (?, ?, ?, ?, 0)
+                """, (title, description, start_date, end_date))
                 flash("Election created.", "success")
         
         elif action == "activate":
@@ -479,11 +500,10 @@ def admin_elections():
                         "error"
                     )
                 else:
-                    execute_db(
-                        "UPDATE Election "
-                        "SET is_active = CASE WHEN id=? THEN 1 ELSE 0 END",
-                        (election["id"],)
-                    )
+                    execute_db("""
+                        UPDATE Election
+                        SET is_active = CASE WHEN id=? THEN 1 ELSE 0 END
+                    """, (election["id"],))
                     flash(
                         f"'{election['title']}' is now live. Any other "
                         "election was switched off.", "success"
@@ -495,15 +515,20 @@ def admin_elections():
             if election is None:
                 flash("Election not found.", "error")
             else:
-                execute_db(
-                    "UPDATE Election SET is_active=0 WHERE id=?",
-                    (election["id"],)
-                )
+                execute_db("""
+                    UPDATE Election
+                    SET is_active=0
+                    WHERE id=?
+                """, (election["id"],))
                 flash(f"'{election['title']}' has been deactivated.", "info")
 
         return redirect(url_for("admin_elections"))
 
-    elections = query_db("SELECT * FROM Election ORDER BY id DESC")
+    elections = query_db("""
+        SELECT *
+        FROM Election
+        ORDER BY id DESC
+    """)
 
     return render_template("admin_elections.html", elections=elections)
 
@@ -530,38 +555,40 @@ def admin_positions():
 
             max_votes = max(1, min(max_votes, 10))
 
-            duplicate = query_db(
-                "SELECT id FROM Positions "
-                "WHERE election_id=? AND LOWER(position_name)=LOWER(?)",
-                (election_id, position_name), one=True
-            )
+            duplicate = query_db("""
+                SELECT id
+                FROM Positions
+                WHERE election_id=? AND LOWER(position_name)=LOWER(?)
+            """, (election_id, position_name), one=True)
 
             if not position_name:
                 flash("Please enter a position name.", "error")
             elif duplicate:
                 flash(f"'{position_name}' already exists in this election.", "error")
             else:
-                execute_db(
-                    "INSERT INTO Positions (election_id, position_name, max_votes) "
-                    "VALUES (?, ?, ?)",
-                    (election_id, position_name, max_votes)
-                )
+                execute_db("""
+                    INSERT INTO Positions (election_id, position_name, max_votes)
+                    VALUES (?, ?, ?)
+                """, (election_id, position_name, max_votes))
                 flash("Position added.", "success")
 
         elif action == "delete":
             position_id = request.form.get("position_id", type=int)
 
-            position = query_db(
-                "SELECT id FROM Positions WHERE id=? AND election_id=?",
-                (position_id, election_id), one=True
-            )
+            position = query_db("""
+                SELECT id
+                FROM Positions
+                WHERE id=? AND election_id=?
+            """, (position_id, election_id), one=True)
 
             if position is None:
                 flash("Position not found.", "error")
-            elif query_db(
-                "SELECT id FROM Votes WHERE position_id=? LIMIT 1",
-                (position["id"],), one=True
-            ):
+            elif query_db("""
+                SELECT id
+                FROM Votes
+                WHERE position_id=?
+                LIMIT 1
+            """, (position["id"],), one=True):
                 flash(
                     "People have already voted for this position, so it "
                     "can't be removed.", "error"
@@ -569,22 +596,32 @@ def admin_positions():
             else:
                 db = get_db()
                 
-                db.execute(
-                    "DELETE FROM Candidates WHERE position_id=?", (position["id"],)
-                )
-                db.execute("DELETE FROM Positions WHERE id=?", (position["id"],))
+                db.execute("""
+                    DELETE FROM Candidates
+                    WHERE position_id=?
+                """, (position["id"],))
+                db.execute("""
+                    DELETE FROM Positions
+                    WHERE id=?
+                """, (position["id"],))
                 db.commit()
 
                 flash("Position removed.", "info")
 
-    elections = query_db("SELECT * FROM Election ORDER BY id DESC")
+    elections = query_db("""
+        SELECT *
+        FROM Election
+        ORDER BY id DESC
+    """)
     positions = []
 
     if election_id:
-        positions = query_db(
-            "SELECT * FROM Positions WHERE election_id=? ORDER BY id",
-            (election_id,)
-        )
+        positions = query_db("""
+            SELECT *
+            FROM Positions
+            WHERE election_id=?
+            ORDER BY id
+        """, (election_id,))
 
     return render_template(
         "admin_positions.html",
@@ -626,19 +663,22 @@ def demo_admin():
     if not DEMO_MODE:
         abort(404)
 
-    user = query_db(
-        "SELECT * FROM Users WHERE email=?", (DEMO_ADMIN_EMAIL,), one=True
-    )
+    user = query_db("""
+        SELECT *
+        FROM Users
+        WHERE email=?
+    """, (DEMO_ADMIN_EMAIL,), one=True)
 
     if user is None:
-        execute_db(
-            "INSERT INTO Users (google_id, email, name, is_admin) "
-            "VALUES (?, ?, ?, 1)",
-            ("demo-admin", DEMO_ADMIN_EMAIL, "Demo Admin")
-        )
-        user = query_db(
-            "SELECT * FROM Users WHERE email=?", (DEMO_ADMIN_EMAIL,), one=True
-        )
+        execute_db("""
+            INSERT INTO Users (google_id, email, name, is_admin)
+            VALUES (?, ?, ?, 1)
+        """, ("demo-admin", DEMO_ADMIN_EMAIL, "Demo Admin"))
+        user = query_db("""
+            SELECT *
+            FROM Users
+            WHERE email=?
+        """, (DEMO_ADMIN_EMAIL,), one=True)
 
     session.clear()
     session.permanent = True
@@ -665,12 +705,16 @@ def parse_media(raw):
 
 
 def load_candidates(position_id):
-    rows = query_db(
-        "SELECT Candidates.id, Candidates.bio, Candidates.photo, Users.name "
-        "FROM Candidates JOIN Users ON Candidates.user_id = Users.id "
-        "WHERE Candidates.position_id=? ORDER BY Users.name",
-        (position_id,)
-    )
+    rows = query_db("""
+        SELECT Candidates.id,
+            Candidates.bio,
+            Candidates.photo,
+            Users.name
+        FROM Candidates
+        JOIN Users ON Candidates.user_id = Users.id
+        WHERE Candidates.position_id=?
+        ORDER BY Users.name
+    """, (position_id,))
 
     return [
         {
@@ -684,21 +728,23 @@ def load_candidates(position_id):
 
 
 def is_candidate_in_election(user_id, election_id):
-    row = query_db(
-        "SELECT Candidates.id FROM Candidates "
-        "JOIN Positions ON Candidates.position_id = Positions.id "
-        "WHERE Candidates.user_id=? AND Positions.election_id=? LIMIT 1",
-        (user_id, election_id), one=True
-    )
+    row = query_db("""
+        SELECT Candidates.id
+        FROM Candidates
+        JOIN Positions ON Candidates.position_id = Positions.id
+        WHERE Candidates.user_id=? AND Positions.election_id=?
+        LIMIT 1
+    """, (user_id, election_id), one=True)
 
     return row is not None
 
 
 def count_votes_for_candidate(candidate_id):
-    return query_db(
-        "SELECT COUNT(*) AS c FROM Votes WHERE candidate_id=?",
-        (candidate_id,), one=True
-    )["c"]
+    return query_db("""
+        SELECT COUNT(*) AS c
+        FROM Votes
+        WHERE candidate_id=?
+    """, (candidate_id,), one=True)["c"]
 
 
 @app.route("/admin/candidates", methods=["GET", "POST"])
@@ -718,13 +764,16 @@ def admin_candidates():
             position_id = request.form.get("position_id", type=int)
             bio = request.form.get("bio", "").strip()[:2000]
 
-            position = query_db(
-                "SELECT * FROM Positions WHERE id=? AND election_id=?",
-                (position_id, election_id), one=True
-            )
-            student = query_db(
-                "SELECT * FROM Users WHERE LOWER(email)=?", (email,), one=True
-            )
+            position = query_db("""
+                SELECT *
+                FROM Positions
+                WHERE id=? AND election_id=?
+            """, (position_id, election_id), one=True)
+            student = query_db("""
+                SELECT *
+                FROM Users
+                WHERE LOWER(email)=?
+            """, (email,), one=True)
 
             if position is None:
                 flash("Please choose a position from this election.", "error")
@@ -744,11 +793,10 @@ def admin_candidates():
                     "A student can only stand for one position.", "error"
                 )
             else:
-                execute_db(
-                    "INSERT INTO Candidates (position_id, user_id, bio, photo) "
-                    "VALUES (?, ?, ?, '{}')",
-                    (position["id"], student["id"], bio)
-                )
+                execute_db("""
+                    INSERT INTO Candidates (position_id, user_id, bio, photo)
+                    VALUES (?, ?, ?, '{}')
+                """, (position["id"], student["id"], bio))
                 flash(
                     f"{student['name']} is now a candidate for "
                     f"{position['position_name']}.", "success"
@@ -757,12 +805,12 @@ def admin_candidates():
         elif action == "remove":
             candidate_id = request.form.get("candidate_id", type=int)
 
-            candidate = query_db(
-                "SELECT Candidates.id FROM Candidates "
-                "JOIN Positions ON Candidates.position_id = Positions.id "
-                "WHERE Candidates.id=? AND Positions.election_id=?",
-                (candidate_id, election_id), one=True
-            )
+            candidate = query_db("""
+                SELECT Candidates.id
+                FROM Candidates
+                JOIN Positions ON Candidates.position_id = Positions.id
+                WHERE Candidates.id=? AND Positions.election_id=?
+            """, (candidate_id, election_id), one=True)
 
             if candidate is None:
                 flash("Candidate not found.", "error")
@@ -772,30 +820,41 @@ def admin_candidates():
                     "removed.", "error"
                 )
             else:
-                execute_db("DELETE FROM Candidates WHERE id=?", (candidate["id"],))
+                execute_db("""
+                    DELETE FROM Candidates
+                    WHERE id=?
+                """, (candidate["id"],))
                 flash("Candidate removed.", "info")
 
         return redirect(url_for("admin_candidates", election_id=election_id))
 
-    elections = query_db("SELECT * FROM Election ORDER BY id DESC")
+    elections = query_db("""
+        SELECT *
+        FROM Election
+        ORDER BY id DESC
+    """)
     positions, candidates = [], []
 
     if election_id:
-        positions = query_db(
-            "SELECT * FROM Positions WHERE election_id=? ORDER BY id",
-            (election_id,)
-        )
-        candidates = query_db(
-            "SELECT Candidates.id, Candidates.bio, Positions.position_name, "
-            "Users.name, Users.email, (SELECT COUNT(*) FROM Votes "
-            "WHERE Votes.candidate_id = Candidates.id) AS vote_count "
-            "FROM Candidates "
-            "JOIN Positions ON Candidates.position_id = Positions.id "
-            "JOIN Users ON Candidates.user_id = Users.id "
-            "WHERE Positions.election_id=? "
-            "ORDER BY Positions.id, Users.name",
-            (election_id,)
-        )
+        positions = query_db("""
+            SELECT *
+            FROM Positions
+            WHERE election_id=?
+            ORDER BY id
+        """, (election_id,))
+        candidates = query_db("""
+            SELECT Candidates.id,
+                Candidates.bio,
+                Positions.position_name,
+                Users.name,
+                Users.email,
+                (SELECT COUNT(*) FROM Votes WHERE Votes.candidate_id = Candidates.id) AS vote_count
+            FROM Candidates
+            JOIN Positions ON Candidates.position_id = Positions.id
+            JOIN Users ON Candidates.user_id = Users.id
+            WHERE Positions.election_id=?
+            ORDER BY Positions.id, Users.name
+        """, (election_id,))
 
     return render_template(
         "admin_candidates.html",
@@ -814,28 +873,29 @@ def cast_vote(position_id, candidate_id):
     if not is_open:
         return jsonify({"error": message}), 403
 
-    position = query_db(
-        "SELECT id FROM Positions WHERE id=? AND election_id=?",
-        (position_id, election["id"]), one=True
-    )
+    position = query_db("""
+        SELECT id
+        FROM Positions
+        WHERE id=? AND election_id=?
+    """, (position_id, election["id"]), one=True)
 
     if position is None:
         return jsonify({"error": "That position isn't part of the current election."}), 400
 
-    candidate = query_db(
-        "SELECT id FROM Candidates WHERE id=? AND position_id=?",
-        (candidate_id, position_id), one=True
-    )
+    candidate = query_db("""
+        SELECT id
+        FROM Candidates
+        WHERE id=? AND position_id=?
+    """, (candidate_id, position_id), one=True)
 
     if candidate is None:
         return jsonify({"error": "That candidate isn't standing for this position."}), 400
 
     try:
-        execute_db(
-            "INSERT INTO Votes (voter_id, position_id, candidate_id) "
-            "VALUES (?, ?, ?)",
-            (user["id"], position_id, candidate_id)
-        )
+        execute_db("""
+            INSERT INTO Votes (voter_id, position_id, candidate_id)
+            VALUES (?, ?, ?)
+        """, (user["id"], position_id, candidate_id))
     except sqlite3.IntegrityError:
         return jsonify({"error": "You've already voted for this position."}), 409
 

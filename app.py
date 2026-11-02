@@ -322,12 +322,66 @@ def voter_required(view):
     @wraps(view)
     @login_required
     def wrapped(*args, **kwargs):
-        if get_current_user()["is_admin"]:
+        user = get_current_user()
+
+        if user["is_admin"]:
+            abort(403)
+
+        if is_candidate_in_active_election(user["id"]):
             abort(403)
 
         return view(*args, **kwargs)
 
     return wrapped
+
+
+def is_candidate(user_id):
+    row = query_db(
+        "SELECT id FROM Candidates WHERE user_id=? LIMIT 1", (user_id,), one=True
+    )
+
+    return row is not None
+
+
+def is_candidate_in_active_election(user_id):
+    election = get_active_election()
+
+    return bool(election) and is_candidate_in_election(user_id, election["id"])
+
+
+def get_current_candidacy(user_id):
+    return query_db(
+        """SELECT Candidates.*, Positions.position_name, Positions.election_id 
+            FROM Candidates 
+            JOIN Positions ON Candidates.position_id = Positions.id 
+            JOIN Election ON Positions.election_id = Election.id 
+            WHERE Candidates.user_id = ? 
+            ORDER BY Election.is_active DESC, Election.id DESC 
+            LIMIT 1""",
+        (user_id,), one=True
+    )
+
+
+def candidate_required(view):
+    @wraps(view)
+    @login_required
+    def wrapped(*args, **kwargs):
+        if not is_candidate(get_current_user()["id"]):
+            abort(403)
+
+        return view(*args, **kwargs)
+
+    return wrapped
+
+
+@app.context_processor
+def inject_role_flags():
+    user = get_current_user()
+
+    return {
+        "is_candidate_ever": bool(user) and is_candidate(user["id"]),
+        "is_candidate_now": bool(user) and is_candidate_in_active_election(user["id"]),
+    }
 
 
 @app.route("/")

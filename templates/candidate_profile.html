@@ -1,0 +1,32 @@
+{% extends "layout.html" %}
+
+{% block title %}
+Edit My Profile
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Edit my profile</h2>
+    <p class="muted">Standing for <strong>{{ candidacy.position_name }}</strong></p>
+
+    <form method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+        <label for="bio">About me</label>
+        <textarea id="bio" name="bio" rows="6" maxlength="2000">{{ candidacy.bio or "" }}</textarea>
+
+        <label for="photo-file">Profile photo (PNG, JPG or WEBP)</label>
+        {% if media.photo %}
+        <img src="{{ media.photo }}" alt="Your current photo" class="candidate-photo" style="display:block;margin-bottom:8px;">
+        {% endif %}
+        <input type="file" id="photo-file" name="photo_file" accept="image/png,image/jpeg,image/webp">
+
+        {# VOICE AND VIDEO FIELDS GO HERE (step 9) #}
+
+        <div style="margin-top:20px;">
+            <button type="submit" class="btn glacier">Save profile</button>
+            <a href="{{ url_for('candidate_dashboard') }}" class="btn outline">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

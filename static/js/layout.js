@@ -38,3 +38,56 @@ function show_toast(message, type = "info", duration = 4000) {
         setTimeout(() => remove_toast(toast), duration);
     }
 }
+
+function show_confirm_toast(message) {
+    return new Promise(resolve => {
+        const container = ensure_toast_container();
+        const toast = document.createElement('div');
+        toast.className = 'toast toast-confirm';
+
+        const text = document.createElement('p');
+        text.className = 'toast-message';
+        text.textContent = message;
+
+        const actions = document.createElement('div');
+        actions.className = 'toast-actions';
+
+        const cancel_btn = document.createElement('button');
+        cancel_btn.type = 'button';
+        cancel_btn.className = 'btn outline small';
+        cancel_btn.textContent = 'Cancel';
+
+        const confirm_btn = document.createElement('button');
+        confirm_btn.type = 'button';
+        confirm_btn.className = 'btn danger small';
+        confirm_btn.textContent = 'Confirm';
+
+        const finish = (result) => {
+            remove_toast(toast);
+            resolve(result);
+        };
+
+        cancel_btn.addEventListener('click', () => finish(false));
+        confirm_btn.addEventListener('click', () => finish(true));
+
+        actions.append(cancel_btn, confirm_btn);
+        toast.append(text, actions);
+        container.appendChild(toast);
+
+        requestAnimationFrame(() => toast.classList.add('toast-visible'));
+    });
+}
+
+document.querySelectorAll('form[data-confirm]').forEach(form => {
+    form.addEventListener('submit', async (event) => {
+        if (form.dataset.confirmed === "true") return;
+
+        event.preventDefault();
+        const ok = await show_confirm_toast(form.dataset.confirm);
+
+        if (ok) {
+            form.dataset.confirmed = "true";
+            form.requestSubmit();
+        }
+    });
+});

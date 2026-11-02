@@ -499,3 +499,20 @@ th {
     border-top: 1px solid #e7ede9;
     margin: 24px 0;
 }
+
+.toast-confirm {
+    background: white;
+    color: #16221e;
+    border: 1.5px solid #e7ede9;
+    cursor: default;
+}
+
+.toast-confirm .toast-message { 
+    margin: 0 0 10px; 
+}
+
+.toast-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}

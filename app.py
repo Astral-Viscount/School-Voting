@@ -303,6 +303,18 @@ def admin_required(view):
     return wrapped
 
 
+def voter_required(view):
+    @wraps(view)
+    @login_required
+    def wrapped(*args, **kwargs):
+        if get_current_user()["is_admin"]:
+            abort(403)
+
+        return view(*args, **kwargs)
+
+    return wrapped
+
+
 @app.route("/")
 def home():
     return render_template("index.html", user=session.get("user_name"))
@@ -331,12 +343,13 @@ def dashboard():
 
 
 @app.route("/voter")
-@login_required
+@voter_required
 def voter_dashboard():
+    user = get_current_user()
     election = get_active_election()
     is_open, message = voting_is_open(election)
 
-    positions = []
+    entries = []
 
     if election:
         positions = query_db(
@@ -344,9 +357,21 @@ def voter_dashboard():
             (election["id"],)
         )
 
+        for position in positions:
+            voted = query_db(
+                "SELECT id FROM Votes WHERE voter_id=? AND position_id=?",
+                (user["id"], position["id"]), one=True
+            )
+
+            entries.append({
+                "position": dict(position),
+                "candidates": load_candidates(position["id"]),
+                "has_voted": voted is not None,
+            })
+
     return render_template(
         "voter_dashboard.html",
-        user=get_current_user(), election=election, positions=positions,
+        user=user, election=election, entries=entries,
         voting_open=is_open, voting_message=message
     )
 

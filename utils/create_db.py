@@ -35,5 +35,32 @@ CREATE TABLE IF NOT EXISTS Positions(
 )
 """)
 
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS Candidates(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    position_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    bio TEXT DEFAULT '',
+    photo TEXT DEFAULT '{}',
+    UNIQUE(position_id, user_id),
+    FOREIGN KEY(position_id) REFERENCES Positions(id),
+    FOREIGN KEY(user_id) REFERENCES Users(id)
+)
+""")
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS Votes(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    voter_id INTEGER NOT NULL,
+    position_id INTEGER NOT NULL,
+    candidate_id INTEGER NOT NULL,
+    time TEXT DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(voter_id, position_id),
+    FOREIGN KEY(voter_id) REFERENCES Users(id),
+    FOREIGN KEY(position_id) REFERENCES Positions(id),
+    FOREIGN KEY(candidate_id) REFERENCES Candidates(id)
+)
+""")
+
 conn.commit()
 conn.close()

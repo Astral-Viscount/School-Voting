@@ -362,3 +362,363 @@ def test_voter_is_told_when_voting_starts(client):
     html = client.get("/voter").get_data(as_text=True)
 
     assert "Voting starts" in html
+
+
+def add_user(name, email=None, is_admin=0):
+    email = email or f"{name.lower().replace(' ', '.')}@example.com"
+
+    return db_run(
+        "INSERT INTO Users (google_id, email, name, is_admin) VALUES (?, ?, ?, ?)",
+        (f"g-{email}", email, name, is_admin)
+    )
+
+
+def add_position(election_id, name="Head Prefect"):
+    return db_run(
+        "INSERT INTO Positions (election_id, position_name) VALUES (?, ?)",
+        (election_id, name)
+    )
+
+
+def add_candidate(position_id, name="Candidate One", bio="Vote for me"):
+    user_id = add_user(name)
+    candidate_id = db_run(
+        "INSERT INTO Candidates (position_id, user_id, bio) VALUES (?, ?, ?)",
+        (position_id, user_id, bio)
+    )
+
+    return candidate_id, user_id
+
+
+def live_race():
+    election_id = add_election(
+        "Live", start="2000-01-01T00:00", end="2099-01-01T00:00", active=1
+    )
+    position_id = add_position(election_id)
+    candidate_id, _ = add_candidate(position_id)
+
+    return election_id, position_id, candidate_id
+
+
+def vote(client, position_id, candidate_id):
+    return post_form(client, f"/vote/{position_id}/{candidate_id}", {})
+
+
+def vote_rows():
+    return db_rows("SELECT * FROM Votes")
+
+
+def test_student_can_vote(client):
+    _, position_id, candidate_id = live_race()
+    login_as(client, STUDENT_ID)
+
+    response = vote(client, position_id, candidate_id)
+
+    assert response.status_code == 200
+    assert response.get_json() == {"success": True}
+
+    rows = vote_rows()
+
+    assert len(rows) == 1
+    assert rows[0]["voter_id"] == STUDENT_ID
+    assert rows[0]["candidate_id"] == candidate_id
+
+
+def test_cannot_vote_twice_for_the_same_position(client):
+    _, position_id, candidate_id = live_race()
+    login_as(client, STUDENT_ID)
+
+    vote(client, position_id, candidate_id)
+    second = vote(client, position_id, candidate_id)
+
+    assert second.status_code == 409
+    assert len(vote_rows()) == 1
+
+
+def test_cannot_switch_to_another_candidate_after_voting(client):
+    _, position_id, first = live_race()
+    second, _ = add_candidate(position_id, "Candidate Two")
+    login_as(client, STUDENT_ID)
+
+    vote(client, position_id, first)
+    response = vote(client, position_id, second)
+
+    assert response.status_code == 409
+    assert vote_rows()[0]["candidate_id"] == first
+
+
+def test_can_vote_once_in_each_position(client):
+    election_id, position_a, candidate_a = live_race()
+    position_b = add_position(election_id, "Sports Captain")
+    candidate_b, _ = add_candidate(position_b, "Sporty Person")
+    login_as(client, STUDENT_ID)
+
+    vote(client, position_a, candidate_a)
+    vote(client, position_b, candidate_b)
+
+    assert len(vote_rows()) == 2
+
+
+def test_two_students_can_vote_for_the_same_candidate(client):
+    _, position_id, candidate_id = live_race()
+    other_student = add_user("Other Student")
+
+    login_as(client, STUDENT_ID)
+    vote(client, position_id, candidate_id)
+
+    login_as(client, other_student)
+    vote(client, position_id, candidate_id)
+
+    assert len(vote_rows()) == 2
+
+
+def test_cannot_vote_when_no_election_is_live(client):
+    election_id = add_election("Not live", active=0)
+    position_id = add_position(election_id)
+    candidate_id, _ = add_candidate(position_id)
+    login_as(client, STUDENT_ID)
+
+    assert vote(client, position_id, candidate_id).status_code == 403
+    assert vote_rows() == []
+
+
+def test_cannot_vote_after_the_end_time(client):
+    election_id = add_election("Over", start=None, end="2000-01-08T09:00", active=1)
+    position_id = add_position(election_id)
+    candidate_id, _ = add_candidate(position_id)
+    login_as(client, STUDENT_ID)
+
+    response = vote(client, position_id, candidate_id)
+
+    assert response.status_code == 403
+    assert "closed" in response.get_json()["error"].lower()
+    assert vote_rows() == []
+
+
+def test_cannot_vote_before_the_start_time(client):
+    election_id = add_election("Later", start="2099-01-01T09:00", end="2099-01-08T09:00", active=1)
+    position_id = add_position(election_id)
+    candidate_id, _ = add_candidate(position_id)
+    login_as(client, STUDENT_ID)
+
+    assert vote(client, position_id, candidate_id).status_code == 403
+    assert vote_rows() == []
+
+
+def test_candidate_from_another_position_is_rejected(client):
+    election_id, position_a, _ = live_race()
+    position_b = add_position(election_id, "Sports Captain")
+    candidate_b, _ = add_candidate(position_b, "Sporty Person")
+    login_as(client, STUDENT_ID)
+
+    assert vote(client, position_a, candidate_b).status_code == 400
+    assert vote_rows() == []
+
+
+def test_position_from_a_non_live_election_is_rejected(client):
+    live_race()
+    other_election = add_election("Other", active=0)
+    other_position = add_position(other_election)
+    other_candidate, _ = add_candidate(other_position, "Elsewhere Person")
+    login_as(client, STUDENT_ID)
+
+    assert vote(client, other_position, other_candidate).status_code == 400
+    assert vote_rows() == []
+
+
+def test_vote_without_a_csrf_token_is_rejected(client):
+    _, position_id, candidate_id = live_race()
+    login_as(client, STUDENT_ID)
+
+    assert client.post(f"/vote/{position_id}/{candidate_id}").status_code == 403
+    assert vote_rows() == []
+
+
+def test_logged_out_user_cannot_vote(client):
+    _, position_id, candidate_id = live_race()
+    response = vote(client, position_id, candidate_id)
+
+    assert response.status_code == 302
+    assert "/login" in response.headers["Location"]
+    assert vote_rows() == []
+
+
+def test_admin_cannot_vote(client):
+    _, position_id, candidate_id = live_race()
+    login_as(client, ADMIN_ID)
+
+    assert vote(client, position_id, candidate_id).status_code == 403
+    assert vote_rows() == []
+
+
+def test_admin_cannot_open_the_voter_dashboard(client):
+    login_as(client, ADMIN_ID)
+
+    assert client.get("/voter").status_code == 403
+
+
+def test_voter_dashboard_lists_candidates_with_vote_buttons(client):
+    live_race()
+    login_as(client, STUDENT_ID)
+    html = client.get("/voter").get_data(as_text=True)
+
+    assert "Candidate One" in html
+    assert "Vote for me" in html
+    assert "vote-btn" in html
+
+
+def test_voter_dashboard_shows_voted_state(client):
+    _, position_id, candidate_id = live_race()
+    login_as(client, STUDENT_ID)
+    vote(client, position_id, candidate_id)
+
+    html = client.get("/voter").get_data(as_text=True)
+
+    assert "You&#39;ve voted for this position" in html or "You've voted for this position" in html
+    assert "vote-btn" not in html
+
+
+def test_position_without_candidates_says_so(client):
+    election_id = add_election("Live", start="2000-01-01T00:00", end="2099-01-01T00:00", active=1)
+    add_position(election_id)
+    login_as(client, STUDENT_ID)
+    html = client.get("/voter").get_data(as_text=True)
+
+    assert "No candidates have been added" in html
+
+
+def assign(client, election_id, email, position_id, bio=""):
+    return post_form(client, "/admin/candidates", {
+        "action": "assign", "election_id": election_id,
+        "student_email": email, "position_id": position_id, "bio": bio,
+    })
+
+
+def candidate_count():
+    return len(db_rows("SELECT * FROM Candidates"))
+
+
+def test_admin_can_add_a_candidate_with_a_description(client):
+    election_id = add_election("E")
+    position_id = add_position(election_id)
+    login_as(client, ADMIN_ID)
+    assign(client, election_id, "student@example.com", position_id, "I love this school")
+
+    rows = db_rows("SELECT * FROM Candidates")
+
+    assert len(rows) == 1
+    assert rows[0]["user_id"] == STUDENT_ID
+    assert rows[0]["bio"] == "I love this school"
+
+
+def test_email_lookup_ignores_case_and_spaces(client):
+    election_id = add_election("E")
+    position_id = add_position(election_id)
+    login_as(client, ADMIN_ID)
+    assign(client, election_id, "  STUDENT@Example.com ", position_id)
+
+    assert candidate_count() == 1
+
+
+def test_cannot_add_someone_who_has_not_signed_in(client):
+    election_id = add_election("E")
+    position_id = add_position(election_id)
+    login_as(client, ADMIN_ID)
+    assign(client, election_id, "nobody@example.com", position_id)
+
+    assert candidate_count() == 0
+
+
+def test_cannot_add_an_admin_as_a_candidate(client):
+    election_id = add_election("E")
+    position_id = add_position(election_id)
+    login_as(client, ADMIN_ID)
+    assign(client, election_id, "admin@example.com", position_id)
+
+    assert candidate_count() == 0
+
+
+def test_student_can_only_stand_for_one_position_per_election(client):
+    election_id = add_election("E")
+    head = add_position(election_id, "Head Prefect")
+    sports = add_position(election_id, "Sports Captain")
+    login_as(client, ADMIN_ID)
+
+    assign(client, election_id, "student@example.com", head)
+    assign(client, election_id, "student@example.com", sports)
+
+    assert candidate_count() == 1
+
+
+def test_cannot_add_a_candidate_to_a_position_from_another_election(client):
+    election_a = add_election("A")
+    election_b = add_election("B")
+    position_in_b = add_position(election_b)
+    login_as(client, ADMIN_ID)
+    assign(client, election_a, "student@example.com", position_in_b)
+
+    assert candidate_count() == 0
+
+
+def test_admin_can_remove_a_candidate_without_votes(client):
+    election_id = add_election("E")
+    position_id = add_position(election_id)
+    candidate_id, _ = add_candidate(position_id)
+    login_as(client, ADMIN_ID)
+    post_form(client, "/admin/candidates", {
+        "action": "remove", "election_id": election_id, "candidate_id": candidate_id,
+    })
+
+    assert candidate_count() == 0
+
+
+def test_cannot_remove_a_candidate_who_has_votes(client):
+    election_id, position_id, candidate_id = live_race()
+    login_as(client, STUDENT_ID)
+    vote(client, position_id, candidate_id)
+
+    login_as(client, ADMIN_ID)
+    post_form(client, "/admin/candidates", {
+        "action": "remove", "election_id": election_id, "candidate_id": candidate_id,
+    })
+
+    assert candidate_count() == 1
+
+
+def test_removing_a_position_removes_its_candidates(client):
+    election_id = add_election("E")
+    position_id = add_position(election_id)
+    add_candidate(position_id)
+    login_as(client, ADMIN_ID)
+    post_form(client, "/admin/positions", {
+        "action": "delete", "election_id": election_id, "position_id": position_id,
+    })
+
+    assert candidate_count() == 0
+    assert position_names(election_id) == []
+
+
+def test_cannot_remove_a_position_that_has_votes(client):
+    election_id, position_id, candidate_id = live_race()
+    login_as(client, STUDENT_ID)
+    vote(client, position_id, candidate_id)
+
+    login_as(client, ADMIN_ID)
+    post_form(client, "/admin/positions", {
+        "action": "delete", "election_id": election_id, "position_id": position_id,
+    })
+
+    assert position_names(election_id) == ["Head Prefect"]
+    assert len(vote_rows()) == 1
+
+
+def test_student_cannot_use_the_candidates_page(client):
+    election_id = add_election("E")
+    position_id = add_position(election_id)
+    login_as(client, STUDENT_ID)
+
+    assert client.get("/admin/candidates").status_code == 403
+
+    assign(client, election_id, "student@example.com", position_id)
+
+    assert candidate_count() == 0

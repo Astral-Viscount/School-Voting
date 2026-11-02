@@ -1,8 +1,6 @@
 {% extends "layout.html" %}
 
-{% block title %}
-Voter Dashboard
-{% endblock %}
+{% block title %}Voter Dashboard{% endblock %}
 
 {% block content %}
 <div class="card">
@@ -18,29 +16,51 @@ Voter Dashboard
     {% else %}
         <p>
             <strong>{{ election.title }}</strong>: voting is open
-            {% if election.end_date %}
-            until {{ election.end_date|datetime }}
-            {% endif %}.
+            {% if election.end_date %}until {{ election.end_date|datetime }}{% endif %}.
         </p>
     {% endif %}
 </div>
 
-{% if election %}
+{% for entry in entries %}
 <div class="card">
-    <h3>Positions up for election</h3>
+    <h3>{{ entry.position.position_name }}</h3>
 
-    {% if positions %}
-        <ul>
-            {% for position in positions %}
-            <li>{{ position.position_name }}</li>
-            {% endfor %}
-        </ul>
+    {% if entry.has_voted %}
+        <p class="flash flash-success">You've voted for this position. Thank you.</p>
 
-        <p class="muted">Candidates and voting arrive in the next few weeks.</p>
+    {% elif not voting_open %}
+        <p class="muted">Voting isn't open for this position right now.</p>
+
+    {% elif not entry.candidates %}
+        <p class="muted">No candidates have been added for this position yet.</p>
+
     {% else %}
-        <p>No positions have been added yet.</p>
+        <div class="candidate-grid">
+            {% for candidate in entry.candidates %}
+            <div class="candidate-card">
+                {% if candidate.media.photo %}
+                <img src="{{ candidate.media.photo }}" alt="Photo of {{ candidate.name }}" class="candidate-photo">
+                {% endif %}
+
+                <h4>{{ candidate.name }}</h4>
+                <p class="candidate-bio">{{ candidate.bio }}</p>
+
+                <div class="candidate-actions">
+                    <button type="button" class="btn glacier small vote-btn"
+                            data-vote-url="{{ url_for('cast_vote', position_id=entry.position.id, candidate_id=candidate.id) }}"
+                            data-candidate-name="{{ candidate.name }}"
+                            data-position-name="{{ entry.position.position_name }}">
+                        Vote
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
     {% endif %}
 </div>
-{% endif %}
+{% endfor %}
+{% endblock %}
 
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/voter_dashboard.js') }}"></script>
 {% endblock %}

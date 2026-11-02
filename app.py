@@ -13,6 +13,9 @@ from flask import (
 from google.auth.exceptions import GoogleAuthError
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
+import json
+import re
+import time
 
 load_dotenv(override=True)
 
@@ -597,6 +600,155 @@ def demo_admin():
 @app.context_processor
 def inject_demo_mode():
     return {"demo_mode": DEMO_MODE}
+
+
+def parse_media(raw):
+    try:
+        data = json.loads(raw) if raw else {}
+    except ValueError:
+        return {}
+
+    return data if isinstance(data, dict) else {}
+
+
+def load_candidates(position_id):
+    rows = query_db(
+        "SELECT Candidates.id, Candidates.bio, Candidates.photo, Users.name "
+        "FROM Candidates JOIN Users ON Candidates.user_id = Users.id "
+        "WHERE Candidates.position_id=? ORDER BY Users.name",
+        (position_id,)
+    )
+
+    return [
+        {
+            "id": row["id"],
+            "name": row["name"],
+            "bio": row["bio"] or "",
+            "media": parse_media(row["photo"]),
+        }
+        for row in rows
+    ]
+
+
+def is_candidate_in_election(user_id, election_id):
+    row = query_db(
+        "SELECT Candidates.id FROM Candidates "
+        "JOIN Positions ON Candidates.position_id = Positions.id "
+        "WHERE Candidates.user_id=? AND Positions.election_id=? LIMIT 1",
+        (user_id, election_id), one=True
+    )
+
+    return row is not None
+
+
+def count_votes_for_candidate(candidate_id):
+    return query_db(
+        "SELECT COUNT(*) AS c FROM Votes WHERE candidate_id=?",
+        (candidate_id,), one=True
+    )["c"]
+
+
+@app.route("/admin/candidates", methods=["GET", "POST"])
+@admin_required
+def admin_candidates():
+    election_id = request.values.get("election_id", type=int)
+
+    if request.method == "POST":
+        action = request.form.get("action")
+
+        if get_election(election_id) is None:
+            flash("Please choose an election first.", "error")
+            return redirect(url_for("admin_candidates"))
+
+        if action == "assign":
+            email = request.form.get("student_email", "").strip().lower()
+            position_id = request.form.get("position_id", type=int)
+            bio = request.form.get("bio", "").strip()[:2000]
+
+            position = query_db(
+                "SELECT * FROM Positions WHERE id=? AND election_id=?",
+                (position_id, election_id), one=True
+            )
+            student = query_db(
+                "SELECT * FROM Users WHERE LOWER(email)=?", (email,), one=True
+            )
+
+            if position is None:
+                flash("Please choose a position from this election.", "error")
+            elif student is None:
+                flash(
+                    "No student with that email has signed in yet. Ask them "
+                    "to sign in once first, then try again.", "error"
+                )
+            elif student["is_admin"]:
+                flash(
+                    f"{student['name']} is an administrator and can't stand "
+                    "as a candidate.", "error"
+                )
+            elif is_candidate_in_election(student["id"], election_id):
+                flash(
+                    f"{student['name']} is already standing in this election. "
+                    "A student can only stand for one position.", "error"
+                )
+            else:
+                execute_db(
+                    "INSERT INTO Candidates (position_id, user_id, bio, photo) "
+                    "VALUES (?, ?, ?, '{}')",
+                    (position["id"], student["id"], bio)
+                )
+                flash(
+                    f"{student['name']} is now a candidate for "
+                    f"{position['position_name']}.", "success"
+                )
+
+        elif action == "remove":
+            candidate_id = request.form.get("candidate_id", type=int)
+
+            candidate = query_db(
+                "SELECT Candidates.id FROM Candidates "
+                "JOIN Positions ON Candidates.position_id = Positions.id "
+                "WHERE Candidates.id=? AND Positions.election_id=?",
+                (candidate_id, election_id), one=True
+            )
+
+            if candidate is None:
+                flash("Candidate not found.", "error")
+            elif count_votes_for_candidate(candidate["id"]) > 0:
+                flash(
+                    "This candidate already has votes, so they can't be "
+                    "removed.", "error"
+                )
+            else:
+                execute_db("DELETE FROM Candidates WHERE id=?", (candidate["id"],))
+                flash("Candidate removed.", "info")
+
+        return redirect(url_for("admin_candidates", election_id=election_id))
+
+    elections = query_db("SELECT * FROM Election ORDER BY id DESC")
+    positions, candidates = [], []
+
+    if election_id:
+        positions = query_db(
+            "SELECT * FROM Positions WHERE election_id=? ORDER BY id",
+            (election_id,)
+        )
+        candidates = query_db(
+            "SELECT Candidates.id, Candidates.bio, Positions.position_name, "
+            "Users.name, Users.email, (SELECT COUNT(*) FROM Votes "
+            "WHERE Votes.candidate_id = Candidates.id) AS vote_count "
+            "FROM Candidates "
+            "JOIN Positions ON Candidates.position_id = Positions.id "
+            "JOIN Users ON Candidates.user_id = Users.id "
+            "WHERE Positions.election_id=? "
+            "ORDER BY Positions.id, Users.name",
+            (election_id,)
+        )
+
+    return render_template(
+        "admin_candidates.html",
+        elections=elections, positions=positions, candidates=candidates,
+        election_id=election_id
+    )
 
 
 #Debugging

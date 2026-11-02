@@ -358,15 +358,25 @@ def admin_dashboard():
         "SELECT * FROM Election ORDER BY id DESC", one=True
     )
 
-    stats = {
-        "elections": query_db("SELECT COUNT(*) AS c FROM Election", one=True)["c"],
-        "positions": 0,
-        "users": query_db("SELECT COUNT(*) AS c FROM Users", one=True)["c"],
-    }
+    stats = {"positions": 0, "candidates": 0, "votes": 0}
 
     if election:
         stats["positions"] = query_db(
             "SELECT COUNT(*) AS c FROM Positions WHERE election_id=?",
+            (election["id"],), one=True
+        )["c"]
+
+        stats["candidates"] = query_db(
+            "SELECT COUNT(*) AS c FROM Candidates "
+            "JOIN Positions ON Candidates.position_id = Positions.id "
+            "WHERE Positions.election_id=?",
+            (election["id"],), one=True
+        )["c"]
+        
+        stats["votes"] = query_db(
+            "SELECT COUNT(*) AS c FROM Votes "
+            "JOIN Positions ON Votes.position_id = Positions.id "
+            "WHERE Positions.election_id=?",
             (election["id"],), one=True
         )["c"]
 
@@ -516,13 +526,31 @@ def admin_positions():
         elif action == "delete":
             position_id = request.form.get("position_id", type=int)
 
-            execute_db(
-                "DELETE FROM Positions WHERE id=? AND election_id=?",
-                (position_id, election_id)
+            position = query_db(
+                "SELECT id FROM Positions WHERE id=? AND election_id=?",
+                (position_id, election_id), one=True
             )
-            flash("Position removed.", "info")
 
-        return redirect(url_for("admin_positions", election_id=election_id))
+            if position is None:
+                flash("Position not found.", "error")
+            elif query_db(
+                "SELECT id FROM Votes WHERE position_id=? LIMIT 1",
+                (position["id"],), one=True
+            ):
+                flash(
+                    "People have already voted for this position, so it "
+                    "can't be removed.", "error"
+                )
+            else:
+                db = get_db()
+                
+                db.execute(
+                    "DELETE FROM Candidates WHERE position_id=?", (position["id"],)
+                )
+                db.execute("DELETE FROM Positions WHERE id=?", (position["id"],))
+                db.commit()
+
+                flash("Position removed.", "info")
 
     elections = query_db("SELECT * FROM Election ORDER BY id DESC")
     positions = []

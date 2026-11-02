@@ -62,7 +62,7 @@ Manage Positions
             <td>{{ position.position_name }}</td>
             <td>{{ position.max_votes }}</td>
             <td>
-                <form method="POST">
+                <form method="POST" data-confirm="Remove this position and its candidates?">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                     <input type="hidden" name="action" value="delete">
                     <input type="hidden" name="position_id" value="{{ position.id }}">
@@ -79,7 +79,6 @@ Manage Positions
         <p>No positions yet. Add one above.</p>
     {% endif %}
 
-    <form method="POST" data-confirm="Remove this position and its candidates?"></form>
     <p style="margin-top:14px;">
         <a href="{{ url_for('admin_candidates', election_id=election_id) }}" class="btn outline small">Manage candidates for this election</a>
     </p>

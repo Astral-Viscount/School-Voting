@@ -804,6 +804,44 @@ def admin_candidates():
     )
 
 
+@app.route("/vote/<int:position_id>/<int:candidate_id>", methods=["POST"])
+@voter_required
+def cast_vote(position_id, candidate_id):
+    user = get_current_user()
+    election = get_active_election()
+    is_open, message = voting_is_open(election)
+
+    if not is_open:
+        return jsonify({"error": message}), 403
+
+    position = query_db(
+        "SELECT id FROM Positions WHERE id=? AND election_id=?",
+        (position_id, election["id"]), one=True
+    )
+
+    if position is None:
+        return jsonify({"error": "That position isn't part of the current election."}), 400
+
+    candidate = query_db(
+        "SELECT id FROM Candidates WHERE id=? AND position_id=?",
+        (candidate_id, position_id), one=True
+    )
+
+    if candidate is None:
+        return jsonify({"error": "That candidate isn't standing for this position."}), 400
+
+    try:
+        execute_db(
+            "INSERT INTO Votes (voter_id, position_id, candidate_id) "
+            "VALUES (?, ?, ?)",
+            (user["id"], position_id, candidate_id)
+        )
+    except sqlite3.IntegrityError:
+        return jsonify({"error": "You've already voted for this position."}), 409
+
+    return jsonify({"success": True})
+
+
 #Debugging
 #Testing routes and errors
 @app.route("/test")
